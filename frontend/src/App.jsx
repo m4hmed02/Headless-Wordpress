@@ -1,6 +1,9 @@
+import { Routes, Route } from "react-router-dom"
 import Header from "./components/Header"
 import Footer from "./components/Footer"
-import ProductGrid from "./components/ProductGrid"
+import Cart from "./pages/Cart"
+import Home from "./pages/Home"
+import Product from "./pages/Product"
 
 function App() {
   return (
@@ -9,7 +12,11 @@ function App() {
         <Header />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <ProductGrid />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/product/:id" element={<Product />} />
+          </Routes>
         </main>
       </div>
 
@@ -19,5 +26,3 @@ function App() {
 }
 
 export default App
-
-

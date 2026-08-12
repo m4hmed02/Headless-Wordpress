@@ -1,11 +1,13 @@
+import { Link } from "react-router-dom";
+
 export default function ProductCard({ product }) {
-  const { name, price, regular_price, images, category, description } = product;
+  const { id, name, price, regular_price, images, category, description } = product;
   const imageSrc = images?.[0]?.src || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80';
 
   return (
     <div className="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full group">
       {/* Product Image */}
-      <div className="relative aspect-square overflow-hidden bg-gray-50">
+      <Link to={`/product/${id}`} className="relative aspect-square overflow-hidden bg-gray-50 block">
         <img
           src={imageSrc}
           alt={name}
@@ -16,13 +18,15 @@ export default function ProductCard({ product }) {
             {category}
           </span>
         )}
-      </div>
+      </Link>
 
       {/* Product Details */}
       <div className="p-4 flex flex-col flex-1">
-        <h3 className="text-base font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
-          {name}
-        </h3>
+        <Link to={`/product/${id}`}>
+          <h3 className="text-base font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+            {name}
+          </h3>
+        </Link>
         
         {description && (
           <p className="text-xs text-gray-500 mt-1 line-clamp-2 flex-1">
@@ -49,3 +53,4 @@ export default function ProductCard({ product }) {
     </div>
   );
 }
+
