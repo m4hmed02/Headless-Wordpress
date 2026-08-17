@@ -75,9 +75,32 @@ const updateCartItemQuantity = async (key, quantity, nonce, cartToken) => {
     }
 }
 
+
+const selectShippingRate = async (packageId, rateId, nonce, cartToken) => {
+    const response = await woocommerceStoreAPI.post(
+        '/cart/select-shipping-rate',
+        {
+            package_id: packageId,
+            rate_id: rateId
+        },
+        {
+            headers: {
+                'Nonce': nonce,
+                'Cart-Token': cartToken
+            }
+        }
+    );
+    return {
+        cart: response.data,
+        nonce: response.headers['nonce'],
+        cartToken: response.headers['cart-token']
+    };
+};
+
 module.exports = {
     getCart,
     addToCart,
     removeItemFromCart,
-    updateCartItemQuantity
+    updateCartItemQuantity,
+    selectShippingRate
 };

@@ -2,8 +2,10 @@ const {
     getCart, 
     addToCart, 
     removeItemFromCart,
-    updateCartItemQuantity
+    updateCartItemQuantity,
+    selectShippingRate
  } = require('../services/WooCommerce/cart')
+
 
 const fetchCart = async (req, res) => {
     try {
@@ -92,16 +94,23 @@ const removeProductFromCart = async(req, res) => {
 const changeCartItemQuantity = async(req, res) => {
 
     const { key, quantity } = req.body;
-    const nonce = req.headers['nonce']
-    const cartToken = req.headers['cart-token']
+    const nonce = req.headers['nonce'];
+    const cartToken = req.headers['cart-token'];
 
-    try{
-        const cart = await updateCartItemQuantity(key, quantity, nonce, cartToken);
+    try {
+        const cart = await updateCartItemQuantity(
+            key,
+            quantity,
+            nonce,
+            cartToken
+        );
+
         res.status(200).json({
             success: true,
             data: cart
-        })
-    }catch (error) {
+        });
+
+    } catch (error) {
         console.log('CART ERROR:', error.message);
 
         if (error.response) {
@@ -115,11 +124,47 @@ const changeCartItemQuantity = async(req, res) => {
             wooCommerce: error.response?.data
         });
     }
-}
+};
+
+
+const chooseShippingRate = async(req, res) => {
+    const { package_id, rate_id } = req.body;
+    const nonce = req.headers['nonce'];
+    const cartToken = req.headers['cart-token'];
+
+    try {
+        const cart = await selectShippingRate(
+            package_id || 0,
+            rate_id,
+            nonce,
+            cartToken
+        );
+
+        res.status(200).json({
+            success: true,
+            data: cart
+        });
+
+    } catch (error) {
+        console.log('CART ERROR:', error.message);
+
+        if (error.response) {
+            console.log('STATUS:', error.response.status);
+            console.log('DATA:', error.response.data);
+        }
+
+        res.status(error.response?.status || 500).json({
+            success: false,
+            message: error.message,
+            wooCommerce: error.response?.data
+        });
+    }
+};
 
 module.exports = {
     fetchCart,
     addProductToCart,
     removeProductFromCart,
-    changeCartItemQuantity
+    changeCartItemQuantity,
+    chooseShippingRate
 }

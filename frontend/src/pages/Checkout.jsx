@@ -4,11 +4,16 @@ import BillingForm from "../components/BillingForm";
 import CheckoutOrderSummary from "../components/CheckoutOrderSummary";
 import getCart from "../apis/Cart/getCart";
 import placeOrder from "../apis/Checkout/placeOrder";
+import selectShippingRate from "../apis/Cart/selectShippingRate";
 
 export default function Checkout() {
   const [cartData, setCartData] = useState({});
   const [cartLoading, setCartLoading] = useState(true);
   const [cartError, setCartError] = useState(null);
+  
+  const [updatingCart, setUpdatingCart] = useState(false);
+  const [selectedShippingMethod, setSelectedShippingMethod] = useState("");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("bacs");
 
   const [submitting, setSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(null);
@@ -19,7 +24,17 @@ export default function Checkout() {
       try {
         setCartLoading(true);
         const res = await getCart();
-        setCartData(res?.cart || res || {});
+        const cart = res?.cart || res || {};
+        setCartData(cart);
+        
+        // Initialize default selected shipping method if available
+        if (cart.shipping_rates && cart.shipping_rates.length > 0) {
+          const rates = cart.shipping_rates[0]?.shipping_rates || [];
+          const selectedRate = rates.find(r => r.selected) || rates[0];
+          if (selectedRate) {
+            setSelectedShippingMethod(selectedRate.rate_id);
+          }
+        }
       } catch (err) {
         console.error("Failed to load cart:", err);
         setCartError("Failed to load cart details.");
@@ -30,7 +45,26 @@ export default function Checkout() {
     fetchCart();
   }, []);
 
-  const handlePlaceOrder = async ({ billingAddress, shippingAddress, customerNote }) => {
+  const handleShippingMethodChange = async (rateId) => {
+    setSelectedShippingMethod(rateId);
+    setUpdatingCart(true);
+    
+    try {
+      const packageId = cartData.shipping_rates[0]?.package_id || 0;
+      const res = await selectShippingRate(packageId, rateId);
+      
+      if (res?.cart) {
+        setCartData(res.cart);
+      }
+    } catch (err) {
+      console.error("Failed to update shipping method:", err);
+      // Optional: show a toast or error message here
+    } finally {
+      setUpdatingCart(false);
+    }
+  };
+
+  const handlePlaceOrder = async ({ billingAddress, shippingAddress, customerNote, paymentMethod }) => {
     try {
       setSubmitting(true);
       setOrderError(null);
@@ -38,7 +72,7 @@ export default function Checkout() {
         billingAddress,
         shippingAddress,
         customerNote,
-        paymentMethod: "cod", // default; extend as needed
+        paymentMethod: paymentMethod || selectedPaymentMethod,
       });
       console.log("Order placed:", result);
       setOrderSuccess(result);
@@ -106,7 +140,15 @@ export default function Checkout() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Billing form */}
         <div className="lg:col-span-2">
-          <BillingForm onSubmit={handlePlaceOrder} loading={submitting} />
+          <BillingForm 
+            onSubmit={handlePlaceOrder} 
+            loading={submitting} 
+            shippingRates={shippingRates}
+            selectedShippingMethod={selectedShippingMethod}
+            onShippingMethodChange={handleShippingMethodChange}
+            selectedPaymentMethod={selectedPaymentMethod}
+            onPaymentMethodChange={setSelectedPaymentMethod}
+          />
         </div>
 
         {/* Right: Order summary */}
@@ -115,6 +157,7 @@ export default function Checkout() {
             items={items}
             totals={totals}
             shippingRates={shippingRates}
+            loading={updatingCart}
           />
         </div>
       </div>

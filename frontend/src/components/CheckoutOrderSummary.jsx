@@ -1,6 +1,6 @@
 import { formatMoney } from "../utils/formatMoney";
 
-export default function CheckoutOrderSummary({ items = [], totals = {}, shippingRates = [] }) {
+export default function CheckoutOrderSummary({ items = [], totals = {}, shippingRates = [], loading = false }) {
   const toDollars = (amount) => {
     if (amount === undefined || amount === null) return 0;
     const numeric = parseFloat(amount);
@@ -14,16 +14,30 @@ export default function CheckoutOrderSummary({ items = [], totals = {}, shipping
   };
 
   const shippingRate = getShippingRate();
-  const shippingPrice = shippingRate ? toDollars(shippingRate.price || 0) : 0;
-  const isFreeShipping = !shippingRate || shippingPrice === 0;
+  const shippingPriceFromRate = shippingRate ? toDollars(shippingRate.price || 0) : 0;
+  
+  const rawShippingTotal = totals.total_shipping;
+  const hasShippingCalculated = !!shippingRate || (rawShippingTotal !== null && rawShippingTotal !== undefined);
+  
+  const shippingPrice = rawShippingTotal !== null && rawShippingTotal !== undefined 
+    ? toDollars(rawShippingTotal) 
+    : shippingPriceFromRate;
+    
+  const isFreeShipping = hasShippingCalculated && shippingPrice === 0;
 
   const subtotal = toDollars(totals.total_items);
   const discountAmount = toDollars(totals.total_discount);
   const taxAmount = toDollars(totals.total_tax);
-  const grandTotal = subtotal - discountAmount + (isFreeShipping ? 0 : shippingPrice) + taxAmount;
+  const grandTotal = subtotal - discountAmount + shippingPrice + taxAmount;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-6 space-y-5">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-6 space-y-5 relative">
+      {loading && (
+        <div className="absolute inset-0 bg-white/70 flex flex-col items-center justify-center z-10 rounded-2xl backdrop-blur-[1px]">
+          <span className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-2" />
+          <span className="text-sm font-medium text-gray-600">Updating cart...</span>
+        </div>
+      )}
       <h2 className="text-base font-bold text-gray-900 border-b border-gray-100 pb-4">
         Order Summary
       </h2>
@@ -76,10 +90,14 @@ export default function CheckoutOrderSummary({ items = [], totals = {}, shipping
               <span className="ml-1 text-xs text-gray-400">({shippingRate.name})</span>
             )}
           </span>
-          {isFreeShipping ? (
-            <span className="font-semibold text-green-600">Free</span>
+          {hasShippingCalculated ? (
+            isFreeShipping ? (
+              <span className="font-semibold text-green-600">Free</span>
+            ) : (
+              <span className="font-semibold text-gray-900">${shippingPrice.toFixed(2)}</span>
+            )
           ) : (
-            <span className="font-semibold text-gray-900">${shippingPrice.toFixed(2)}</span>
+            <span className="font-semibold text-gray-400 text-sm">Calculated next step</span>
           )}
         </div>
 
