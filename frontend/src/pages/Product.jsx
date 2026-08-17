@@ -42,7 +42,7 @@ export default function Product() {
 
       const cart = await addToCart(id, quantity);
       console.log("Product added to cart:", cart);
-      
+
       setCartSuccess(true);
       setTimeout(() => {
         setCartSuccess(false);
@@ -237,15 +237,14 @@ export default function Product() {
                   type="button"
                   onClick={handleAddToCart}
                   disabled={isAdding || stock_status !== "instock"}
-                  className={`flex-1 py-3.5 px-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${
-                    cartSuccess
+                  className={`flex-1 py-3.5 px-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${cartSuccess
                       ? "bg-green-600 text-white"
                       : isAdding
-                      ? "bg-blue-400 text-white cursor-not-allowed"
-                      : stock_status !== "instock"
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700 text-white"
-                  }`}
+                        ? "bg-blue-400 text-white cursor-not-allowed"
+                        : stock_status !== "instock"
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                    }`}
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />

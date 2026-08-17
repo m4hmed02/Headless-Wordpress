@@ -34,10 +34,10 @@ export default function Header() {
               Checkout
             </Link>
             <Link
-              to="/my-account"
+              to="/profile"
               className="text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
             >
-              My Account
+              Profile
             </Link>
           </nav>
 
@@ -49,13 +49,6 @@ export default function Header() {
               aria-label="Cart"
             >
               <img src={cartIcon} alt="Cart" className="w-6 h-6" />
-            </Link>
-            <Link
-              to="/my-account"
-              className="text-gray-700 hover:text-blue-600 p-2 rounded-full hover:bg-gray-100 transition-colors"
-              aria-label="Account"
-            >
-              <img src={userIcon} alt="Account" className="w-6 h-6" />
             </Link>
           </div>
         </div>
