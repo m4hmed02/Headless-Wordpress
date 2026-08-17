@@ -3,10 +3,13 @@ import getCart from "../apis/Cart/getCart"
 import CartItemsList from "../components/CartItemsList"
 import CartSummary from "../components/CartSummary"
 import LoadingSpinner from "../components/LoadingSpinner"
+import removeItemFromCart from '../apis/Cart/removeItemFromCart'
+import updateCartItemQuantity from '../apis/Cart/updateCartItemQuantity'
 
 export default function Cart() {
   const [cartData, setCartData] = useState({})
   const [loading, setLoading] = useState(true)
+  const [updatingKey, setUpdatingKey] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -26,31 +29,50 @@ export default function Cart() {
     fetchCartItems()
   }, [])
 
-  const handleQuantityChange = (key, newQuantity) => {
-    if (!cartData || !cartData.items) return;
-    const updatedItems = cartData.items.map(item => {
-      if ((item.key || item.id) === key) {
-        return { ...item, quantity: newQuantity };
+  const handleRemoveItemFromCart = async (key) => {
+    const previousCartData = cartData
+
+    try {
+      // Show spinner on item first, before any state change
+      setUpdatingKey(key)
+      const res = await removeItemFromCart(key)
+      console.log("Remove response:", res)
+
+      // Try to sync with server response — handle all possible shapes
+      const updatedCart = res?.cart || res?.data?.cart || res?.data || null
+      if (updatedCart?.items !== undefined) {
+        setCartData(updatedCart)
+      } else {
+        // Fallback: remove item from local state if API shape is unrecognised
+        setCartData(prev => ({
+          ...prev,
+          items: (prev?.items || []).filter(i => (i.key || i.id) !== key)
+        }))
       }
-      return item;
-    });
+    } catch (error) {
+      console.error("Error removing item from cart:", error)
+      setCartData(previousCartData) // Rollback on error
+      setError("Failed to remove item from cart")
+    } finally {
+      setUpdatingKey(null)
+    }
+  }
 
-    setCartData({
-      ...cartData,
-      items: updatedItems,
-      items_count: updatedItems.reduce((acc, curr) => acc + curr.quantity, 0)
-    });
-  };
+  const handleQuantityChange = async (key, newQuantity) => {
+    const item = cartData?.items?.find(i => (i.key || i.id) === key)
+    if (!item || newQuantity === "" || newQuantity === item.quantity) return
 
-  const handleRemoveItem = (key) => {
-    if (!cartData || !cartData.items) return;
-    const updatedItems = cartData.items.filter(item => (item.key || item.id) !== key);
-
-    setCartData({
-      ...cartData,
-      items: updatedItems,
-      items_count: updatedItems.reduce((acc, curr) => acc + curr.quantity, 0)
-    });
+    try {
+      setUpdatingKey(key)
+      const response = await updateCartItemQuantity(key, newQuantity)
+      console.log("Update quantity response:", response)
+      setCartData(response?.cart || response || {})
+    } catch (error) {
+      console.error("Error updating cart item quantity:", error)
+      setError("Failed to update cart item quantity")
+    } finally {
+      setUpdatingKey(null)
+    }
   };
 
   const handleApplyCoupon = (code) => {
@@ -85,7 +107,8 @@ export default function Cart() {
           <CartItemsList
             items={items}
             onQuantityChange={handleQuantityChange}
-            onRemoveItem={handleRemoveItem}
+            onRemoveItem={handleRemoveItemFromCart}
+            updatingKey={updatingKey}
           />
         </div>
 

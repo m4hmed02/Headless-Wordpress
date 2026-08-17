@@ -4,6 +4,7 @@ import Footer from "./components/Footer"
 import Cart from "./pages/Cart"
 import Home from "./pages/Home"
 import Product from "./pages/Product"
+import Checkout from './pages/Checkout'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/product/:id" element={<Product />} />
+            <Route path="/checkout" element={<Checkout />} />
           </Routes>
         </main>
       </div>

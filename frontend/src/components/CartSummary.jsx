@@ -1,23 +1,37 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export default function CartSummary({ totals = {}, shippingRates = [], coupons = [], onApplyCoupon }) {
   const [couponCode, setCouponCode] = useState('');
 
-  // Format currency from WooCommerce cent/string amounts or direct numbers
-  const formatMoney = (amount) => {
-    if (amount === undefined || amount === null) return '$0.00';
-    if (typeof amount === 'number') return `$${amount.toFixed(2)}`;
-    // Check if string contains currency symbol or needs formatting
+  // Totals come back as plain dollar strings, e.g. "155" = $155.00
+  const toDollars = (amount) => {
+    if (amount === undefined || amount === null) return 0;
     const numeric = parseFloat(amount);
-    if (isNaN(numeric)) return '$0.00';
-    // WooCommerce Store API usually gives price in minor units (cents) or formatted decimal strings
-    return `$${(numeric / (amount.length > 5 ? 100 : 1)).toFixed(2)}`;
+    return isNaN(numeric) ? 0 : numeric;
   };
 
-  const subtotal = totals.total_items ? formatMoney(totals.total_items) : '$0.00';
-  const shippingTotal = totals.total_shipping ? formatMoney(totals.total_shipping) : '$0.00';
-  const discountTotal = totals.total_discount ? formatMoney(totals.total_discount) : '$0.00';
-  const grandTotal = totals.total_price ? formatMoney(totals.total_price) : '$0.00';
+  // Extract the first available shipping rate from the shippingRates array.
+  // WooCommerce returns: shippingRates = [{ shipping_rates: [{ price, name, ... }] }]
+  const getShippingRate = () => {
+    if (!shippingRates || shippingRates.length === 0) return null;
+    const firstPackage = shippingRates[0];
+    const rates = firstPackage?.shipping_rates || [];
+    // Find the selected rate, or fall back to the first one
+    const selected = rates.find((r) => r.selected) || rates[0];
+    return selected || null;
+  };
+
+  const shippingRate = getShippingRate();
+  const shippingPrice = shippingRate ? toDollars(shippingRate.price || 0) : 0;
+  const isFreeShipping = !shippingRate || shippingPrice === 0;
+
+  const subtotal = toDollars(totals.total_items);
+  const discountAmount = toDollars(totals.total_discount);
+  const taxAmount = toDollars(totals.total_tax);
+
+  // Recalculate grand total using shipping from shippingRates so it's always accurate
+  const grandTotal = subtotal - discountAmount + (isFreeShipping ? 0 : shippingPrice) + taxAmount;
 
   const handleCouponSubmit = (e) => {
     e.preventDefault();
@@ -66,46 +80,48 @@ export default function CartSummary({ totals = {}, shippingRates = [], coupons =
       <div className="space-y-3 text-sm border-t border-gray-100 pt-4">
         <div className="flex justify-between text-gray-600">
           <span>Subtotal</span>
-          <span className="font-semibold text-gray-900">{subtotal}</span>
+          <span className="font-semibold text-gray-900">${subtotal.toFixed(2)}</span>
         </div>
 
+        {/* Shipping — always shown */}
         <div className="flex justify-between text-gray-600">
-          <span>Shipping Charges</span>
-          <span className="font-semibold text-gray-900">
-            {totals.total_shipping && parseInt(totals.total_shipping) > 0 ? shippingTotal : 'Calculated at checkout'}
+          <span>
+            Shipping
+            {shippingRate?.name && (
+              <span className="ml-1 text-xs text-gray-400">({shippingRate.name})</span>
+            )}
           </span>
+          {isFreeShipping ? (
+            <span className="font-semibold text-green-600">Free</span>
+          ) : (
+            <span className="font-semibold text-gray-900">${shippingPrice.toFixed(2)}</span>
+          )}
         </div>
 
-        {totals.total_discount && parseInt(totals.total_discount) > 0 && (
+        {discountAmount > 0 && (
           <div className="flex justify-between text-green-600">
             <span>Discount</span>
-            <span className="font-semibold">-{discountTotal}</span>
+            <span className="font-semibold">-${discountAmount.toFixed(2)}</span>
           </div>
         )}
 
-        {totals.total_tax && parseInt(totals.total_tax) > 0 && (
+        {taxAmount > 0 && (
           <div className="flex justify-between text-gray-600">
             <span>Estimated Tax</span>
-            <span className="font-semibold text-gray-900">{formatMoney(totals.total_tax)}</span>
+            <span className="font-semibold text-gray-900">${taxAmount.toFixed(2)}</span>
           </div>
         )}
 
         <div className="flex justify-between text-base font-bold text-gray-900 border-t border-gray-100 pt-3">
           <span>Total Bill</span>
-          <span className="text-blue-600">{grandTotal}</span>
+          <span className="text-blue-600">${grandTotal.toFixed(2)}</span>
         </div>
       </div>
 
       {/* Proceed to Checkout Button */}
-      <button
-        onClick={() => alert('Proceeding to checkout...')}
-        className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-      >
-        <span>Proceed to Checkout</span>
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-        </svg>
-      </button>
+      <Link to='/checkout' className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+        Proceed to Checkout
+      </Link>
     </div>
   );
 }

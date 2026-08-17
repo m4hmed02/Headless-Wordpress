@@ -1,6 +1,7 @@
 import React from 'react';
+import LoadingSpinner from './LoadingSpinner';
 
-export default function CartItemsList({ items = [], onQuantityChange, onRemoveItem }) {
+export default function CartItemsList({ items = [], onQuantityChange, onRemoveItem, updatingKey }) {
   if (!items || items.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
@@ -25,9 +26,25 @@ export default function CartItemsList({ items = [], onQuantityChange, onRemoveIt
         {items.map((item, index) => {
           const imageSrc = item.featured_image || item.images?.[0]?.src || item.image || '';
           const name = item.name || item.title || 'Product';
-          const price = item.prices?.price ? `$${(parseInt(item.prices.price) / 100).toFixed(2)}` : (item.price || '$0.00');
+          const formatMoney = (amount) => {
+            if (amount === undefined || amount === null) return '$0.00';
+            if (typeof amount === 'number') return `$${amount.toFixed(2)}`;
+            const numeric = parseFloat(amount);
+            if (isNaN(numeric)) return '$0.00';
+            return `$${(numeric / (String(amount).length > 5 ? 100 : 1)).toFixed(2)}`;
+          };
+          const price = item.prices?.price ? formatMoney(item.prices.price) : (item.price || '$0.00');
           const quantity = item.quantity || 1;
           const key = item.key || item.id || index;
+          const isLoadingItem = updatingKey === key;
+
+          if (isLoadingItem) {
+            return (
+              <div key={key} className="p-8 flex items-center justify-center min-h-[100px]">
+                <LoadingSpinner message="Updating item..." />
+              </div>
+            );
+          }
 
           return (
             <div key={key} className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
