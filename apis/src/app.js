@@ -4,6 +4,7 @@ const cors = require('cors')
 const pageRoutes = require('./routes/pageRoutes')
 const productsRoutes = require('./routes/productsRoutes')
 const cartRoutes = require('./routes/cartRoutes')
+const checkoutRoutes = require('./routes/checkoutRoutes')
 
 app.use(cors())
 app.use(express.json())
@@ -16,5 +17,6 @@ app.get('/', (req, res) => {
 app.use('/api/pages', pageRoutes)
 app.use('/api/products', productsRoutes)
 app.use('/api/cart', cartRoutes)
+app.use('/api/checkout', checkoutRoutes)
 
 module.exports = app
