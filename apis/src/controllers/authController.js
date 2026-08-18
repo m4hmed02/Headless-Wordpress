@@ -30,6 +30,30 @@ const loginCustomer = async (req, res) => {
   }
 };
 
+const logoutCustomer = (req, res) => {
+
+    req.session.destroy((error) => {
+
+        if (error) {
+            console.error("Error during logout:", error);
+
+            return res.status(500).json({
+                success: false,
+                message: "Logout failed",
+            });
+        }
+
+        res.clearCookie("connect.sid");
+
+        return res.status(200).json({
+            success: true,
+            message: "Logout successful",
+        });
+    });
+};
+
+
 module.exports = {
-    loginCustomer
+    loginCustomer,
+    logoutCustomer
 };

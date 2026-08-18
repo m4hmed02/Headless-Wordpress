@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
 import { getProducts } from '../apis/Products/getProducts';
+import getWishlist from '../apis/Wishlist/getWishlist';
 
 export default function ProductGrid() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [wishlistIds, setWishlistIds] = useState([]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
@@ -24,7 +26,25 @@ export default function ProductGrid() {
       }
     };
 
+    const fetchWishlist = async () => {
+      try {
+        const customerId = localStorage.getItem('customerId');
+        if (!customerId) return;
+        const wishlistData = await getWishlist(customerId);
+        const ids = Array.isArray(wishlistData)
+          ? wishlistData.map((item) =>
+              typeof item === 'object' ? item.product_id ?? item.id : item
+            )
+          : [];
+        setWishlistIds(ids);
+      } catch (err) {
+        // Silently ignore wishlist errors — don't block the product grid
+        console.error('Failed to load wishlist:', err);
+      }
+    };
+
     fetchProducts();
+    fetchWishlist();
   }, []);
 
   const totalPages = Math.ceil(products.length / itemsPerPage);
@@ -47,7 +67,11 @@ export default function ProductGrid() {
           <p className="text-sm text-gray-500 mt-1">Explore our latest selection of items</p>
         </div>
         <span className="text-xs font-semibold text-gray-500 bg-gray-200 px-2.5 py-1 rounded-full">
-          Showing {products.length > 0 ? `${startIndex + 1}-${Math.min(startIndex + itemsPerPage, products.length)} of ${products.length}` : '0'} products
+          Showing{' '}
+          {products.length > 0
+            ? `${startIndex + 1}-${Math.min(startIndex + itemsPerPage, products.length)} of ${products.length}`
+            : '0'}{' '}
+          products
         </span>
       </div>
 
@@ -77,7 +101,7 @@ export default function ProductGrid() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {currentProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} wishlistIds={wishlistIds} />
             ))}
           </div>
 
@@ -110,4 +134,3 @@ export default function ProductGrid() {
     </section>
   );
 }
-

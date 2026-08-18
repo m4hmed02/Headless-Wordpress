@@ -25,18 +25,15 @@ export default function Profile() {
     try {
       setLoading(true);
       const customerId = localStorage.getItem("customerId");
-      
+
       if (!customerId) {
         throw new Error("No customer ID found in localStorage");
+      } else {
+        const response = await getCustomer(customerId);
+        setProfileData(response.customer || response.data || response);
+        setIsAuthenticated(true);
       }
-
-      const response = await getCustomer(customerId);
-      // The backend returns { success: true, customer: { ... } }
-      // We extract the customer object so the UI components can read it correctly
-      setProfileData(response.customer || response.data || response);
-      setIsAuthenticated(true);
     } catch (error) {
-      // 401 = not logged in, any other error is also treated as unauthenticated
       setIsAuthenticated(false);
       setProfileData(null);
       console.error("Error fetching customer", error);
@@ -90,16 +87,16 @@ export default function Profile() {
     if (!isAuthenticated && !publicTabs.includes(activeTab)) {
       if (showRegister) {
         return (
-          <RegisterPage 
-            onLoginSuccess={handleLoginSuccess} 
-            onSwitchToLogin={() => setShowRegister(false)} 
+          <RegisterPage
+            onLoginSuccess={handleLoginSuccess}
+            onSwitchToLogin={() => setShowRegister(false)}
           />
         );
       } else {
         return (
-          <LoginPage 
-            onLoginSuccess={handleLoginSuccess} 
-            onSwitchToRegister={() => setShowRegister(true)} 
+          <LoginPage
+            onLoginSuccess={handleLoginSuccess}
+            onSwitchToRegister={() => setShowRegister(true)}
           />
         );
       }

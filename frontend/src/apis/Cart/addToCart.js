@@ -1,7 +1,7 @@
 import axios from "axios";
 import getCart from "./getCart";
 
-const addToCart = async (id, quantity) => {
+const addToCart = async (id, quantity, variation = {}) => {
     let cartToken = localStorage.getItem("cartToken");
     let nonce = localStorage.getItem("nonce");
 
@@ -20,12 +20,14 @@ const addToCart = async (id, quantity) => {
     console.log("Nonce:", nonce);
 
     const makeRequest = async (token, n) => {
+        const payload = { id, quantity };
+        if (Object.keys(variation).length > 0) {
+            payload.variation = variation;
+        }
+
         return await axios.post(
             `${import.meta.env.VITE_SERVER_API_URL}/api/cart/add`,
-            {
-                id,
-                quantity
-            },
+            payload,
             {
                 headers: {
                     "Cart-Token": token || "",

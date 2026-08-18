@@ -3,6 +3,9 @@ import { useParams, Link } from "react-router-dom";
 import { getProductsById } from "../apis/Products/getProducts";
 import ProductSkeleton from "../components/ProductSkeleton";
 import addToCart from "../apis/Cart/addToCart";
+import getWishlist from "../apis/Wishlist/getWishlist";
+import addToWishlist from "../apis/Wishlist/addToWishlist";
+import removeFromWishlist from "../apis/Wishlist/removeFromWishlist";
 
 export default function Product() {
   const { id } = useParams();
@@ -14,6 +17,16 @@ export default function Product() {
   const [isAdding, setIsAdding] = useState(false);
   const [cartSuccess, setCartSuccess] = useState(false);
   const [cartError, setCartError] = useState(null);
+
+  // Wishlist state
+  const [wishlisted, setWishlisted] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  // Grouped Product State
+  const [childProducts, setChildProducts] = useState([]);
+  const [childLoading, setChildLoading] = useState(false);
+  const [groupedQuantities, setGroupedQuantities] = useState({});
+  const [selectedAttributes, setSelectedAttributes] = useState({});
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -33,6 +46,53 @@ export default function Product() {
     fetchProduct();
   }, [id]);
 
+  // Fetch wishlist to check if this product is already wishlisted
+  useEffect(() => {
+    const checkWishlist = async () => {
+      try {
+        const customerId = localStorage.getItem("customerId");
+        if (!customerId || !id) return;
+        const wishlistData = await getWishlist(customerId);
+        const actualData = wishlistData?.data || wishlistData;
+        const ids = Array.isArray(actualData)
+          ? actualData.map((item) =>
+              typeof item === "object" ? String(item.product_id ?? item.id) : String(item)
+            )
+          : [];
+        console.log("Fetched wishlist data:", wishlistData);
+        console.log("Parsed wishlist ids:", ids, "Current id:", id);
+        setWishlisted(ids.includes(String(id)));
+      } catch (err) {
+        // silently ignore
+        console.error("Error fetching wishlist", err);
+      }
+    };
+    checkWishlist();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchGroupedChildren = async () => {
+      if (productData?.type === "grouped" && productData?.grouped_products?.length > 0) {
+        try {
+          setChildLoading(true);
+          const children = await Promise.all(
+            productData.grouped_products.map((childId) => getProductsById(childId))
+          );
+          setChildProducts(children);
+          
+          const initialQtys = {};
+          children.forEach(c => initialQtys[c.id] = 0);
+          setGroupedQuantities(initialQtys);
+        } catch (err) {
+          console.error("Failed to fetch grouped products", err);
+        } finally {
+          setChildLoading(false);
+        }
+      }
+    };
+    fetchGroupedChildren();
+  }, [productData]);
+
 
   const handleAddToCart = async () => {
     try {
@@ -40,8 +100,21 @@ export default function Product() {
       setCartError(null);
       setCartSuccess(false);
 
-      const cart = await addToCart(id, quantity);
-      console.log("Product added to cart:", cart);
+      if (productData?.type === "grouped") {
+        const itemsToAdd = Object.entries(groupedQuantities).filter(([_, qty]) => qty > 0);
+        if (itemsToAdd.length === 0) {
+           setCartError("Please choose the quantity of items you wish to add.");
+           setIsAdding(false);
+           return;
+        }
+        for (const [childId, qty] of itemsToAdd) {
+            await addToCart(childId, qty);
+        }
+      } else if (productData?.type === "variable") {
+        await addToCart(id, quantity, selectedAttributes);
+      } else {
+        await addToCart(id, quantity);
+      }
 
       setCartSuccess(true);
       setTimeout(() => {
@@ -52,6 +125,37 @@ export default function Product() {
       setCartError(error.response?.data?.message || error.message || "Failed to add product to cart.");
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleWishlistToggle = async () => {
+    const customerId = localStorage.getItem("customerId");
+    if (!customerId) {
+      alert("Please log in to manage your wishlist.");
+      return;
+    }
+
+    if (wishlisted) {
+      try {
+        setWishlistLoading(true);
+        await removeFromWishlist(parseInt(customerId, 10), parseInt(id, 10));
+        setWishlisted(false);
+      } catch (err) {
+        console.error("Failed to remove from wishlist:", err);
+      } finally {
+        setWishlistLoading(false);
+      }
+      return;
+    }
+
+    try {
+      setWishlistLoading(true);
+      await addToWishlist(parseInt(customerId, 10), parseInt(id, 10));
+      setWishlisted(true);
+    } catch (err) {
+      console.error("Failed to add to wishlist:", err);
+    } finally {
+      setWishlistLoading(false);
     }
   };
 
@@ -89,6 +193,7 @@ export default function Product() {
     stock_status,
     stock_quantity,
     type,
+    grouped_products,
     external_url,
     button_text,
     average_rating,
@@ -167,8 +272,42 @@ export default function Product() {
               </span>
             </div>
 
-            {/* Title */}
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{name}</h1>
+            {/* Title + Wishlist */}
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{name}</h1>
+              <button
+                type="button"
+                onClick={handleWishlistToggle}
+                disabled={wishlistLoading}
+                aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                className={`flex-shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 ${
+                  wishlisted
+                    ? "bg-red-500 border-red-500 text-white hover:bg-red-600 hover:border-red-600"
+                    : "bg-white border-gray-200 text-gray-400 hover:border-red-400 hover:text-red-500"
+                } ${wishlistLoading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+              >
+                {wishlistLoading ? (
+                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-5 h-5"
+                    fill={wishlisted ? "currentColor" : "none"}
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
 
             {/* Ratings & SKU */}
             <div className="flex items-center gap-4 mb-4 text-xs text-gray-500">
@@ -198,7 +337,7 @@ export default function Product() {
               />
             )}
 
-            {/* Actions: External Link or Add to Cart */}
+            {/* Actions: External Link, Grouped Options, or Add to Cart */}
             {type === "external" ? (
               <a
                 href={external_url}
@@ -211,6 +350,129 @@ export default function Product() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
               </a>
+            ) : type === "grouped" ? (
+              <div className="mb-6 border-t border-gray-100 pt-6">
+                <h3 className="text-sm font-bold text-gray-900 mb-4">Included Items</h3>
+                {childLoading ? (
+                   <div className="animate-pulse space-y-3">
+                     <div className="h-10 bg-gray-100 rounded-lg w-full" />
+                     <div className="h-10 bg-gray-100 rounded-lg w-full" />
+                   </div>
+                ) : (
+                  <div className="space-y-4 mb-6">
+                    {childProducts.map(child => (
+                      <div key={child.id} className="flex items-center justify-between border-b border-gray-50 pb-4">
+                         <div>
+                            <Link to={`/product/${child.id}`} className="font-medium text-gray-900 hover:text-blue-600 transition-colors">{child.name}</Link>
+                            <p className="text-sm text-gray-500">${child.price}</p>
+                         </div>
+                         <div className="flex items-center border border-gray-300 rounded-xl bg-gray-50 overflow-hidden w-fit">
+                            <button
+                              onClick={() => setGroupedQuantities(prev => ({...prev, [child.id]: Math.max(0, prev[child.id] - 1)}))}
+                              className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors font-semibold"
+                            >
+                              -
+                            </button>
+                            <span className="px-3 py-1.5 font-bold text-gray-900 text-sm min-w-[2.5rem] text-center bg-white">
+                              {groupedQuantities[child.id] || 0}
+                            </span>
+                            <button
+                              onClick={() => setGroupedQuantities(prev => ({...prev, [child.id]: (prev[child.id] || 0) + 1}))}
+                              className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors font-semibold"
+                            >
+                              +
+                            </button>
+                          </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Grouped Add to Cart Button */}
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  disabled={isAdding || Object.values(groupedQuantities).every(q => q === 0)}
+                  className={`w-full py-3.5 px-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${cartSuccess
+                      ? "bg-green-600 text-white"
+                      : isAdding
+                        ? "bg-blue-400 text-white cursor-not-allowed"
+                        : Object.values(groupedQuantities).every(q => q === 0)
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                    }`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  <span>
+                    {isAdding ? "Adding items..." : cartSuccess ? "Added to Cart!" : "Add Selected to Cart"}
+                  </span>
+                </button>
+              </div>
+            ) : type === "variable" ? (
+              <div className="mb-6">
+                <div className="space-y-4 mb-6">
+                  {attributes.filter(attr => attr.variation).map((attr, idx) => (
+                    <div key={idx}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">{attr.name}</label>
+                      <select
+                        value={selectedAttributes[attr.name] || ""}
+                        onChange={(e) => setSelectedAttributes(prev => ({ ...prev, [attr.name]: e.target.value }))}
+                        className="w-full px-4 py-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      >
+                        <option value="" disabled>Choose {attr.name}</option>
+                        {attr.options.map((opt, i) => (
+                          <option key={i} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                  {/* Quantity Selector */}
+                  <div className="flex items-center border border-gray-300 rounded-xl bg-gray-50 overflow-hidden w-fit">
+                    <button
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      className="px-4 py-2.5 text-gray-600 hover:bg-gray-200 transition-colors font-semibold"
+                    >
+                      -
+                    </button>
+                    <span className="px-4 py-2.5 font-bold text-gray-900 text-sm min-w-[2.5rem] text-center bg-white">
+                      {quantity}
+                    </span>
+                    <button
+                      onClick={() => setQuantity((q) => q + 1)}
+                      className="px-4 py-2.5 text-gray-600 hover:bg-gray-200 transition-colors font-semibold"
+                    >
+                      +
+                    </button>
+                  </div>
+                  
+                  {/* Add to Cart Button */}
+                  <button
+                    type="button"
+                    onClick={handleAddToCart}
+                    disabled={isAdding || stock_status !== "instock" || attributes.filter(a => a.variation).length !== Object.keys(selectedAttributes).length}
+                    className={`flex-1 py-3.5 px-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${cartSuccess
+                        ? "bg-green-600 text-white"
+                        : isAdding
+                          ? "bg-blue-400 text-white cursor-not-allowed"
+                          : stock_status !== "instock" || attributes.filter(a => a.variation).length !== Object.keys(selectedAttributes).length
+                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                      }`}
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    <span>
+                      {isAdding ? "Adding..." : cartSuccess ? "Added to Cart!" : "Add to Cart"}
+                    </span>
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 {/* Quantity Selector */}
@@ -231,7 +493,7 @@ export default function Product() {
                     +
                   </button>
                 </div>
-
+                
                 {/* Add to Cart Button */}
                 <button
                   type="button"

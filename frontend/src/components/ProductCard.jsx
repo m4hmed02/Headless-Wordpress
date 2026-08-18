@@ -1,8 +1,43 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import addToWishlist from "../apis/Wishlist/addToWishlist";
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, wishlistIds = [] }) {
   const { id, name, price, regular_price, images, category, description } = product;
-  const imageSrc = images?.[0]?.src || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80';
+  const imageSrc =
+    images?.[0]?.src ||
+    "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80";
+
+  const customerId = localStorage.getItem("customerId");
+  const isInWishlist = wishlistIds.includes(Number(id)) || wishlistIds.includes(String(id));
+
+  const [wishlisted, setWishlisted] = useState(isInWishlist);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  const handleWishlistToggle = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!customerId) {
+      alert("Please log in to manage your wishlist.");
+      return;
+    }
+
+    if (wishlisted) {
+      // Remove from wishlist — to be implemented later
+      return;
+    }
+
+    try {
+      setWishlistLoading(true);
+      await addToWishlist(customerId, id);
+      setWishlisted(true);
+    } catch (err) {
+      console.error("Failed to add to wishlist:", err);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white rounded-xl shadow-xs border border-gray-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full group">
@@ -18,6 +53,40 @@ export default function ProductCard({ product }) {
             {category}
           </span>
         )}
+
+        {/* Wishlist Heart Button */}
+        <button
+          type="button"
+          onClick={handleWishlistToggle}
+          disabled={wishlistLoading}
+          aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1 ${
+            wishlisted
+              ? "bg-red-500 text-white hover:bg-red-600"
+              : "bg-white/90 backdrop-blur-xs text-gray-400 hover:text-red-500 hover:bg-white"
+          } ${wishlistLoading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+        >
+          {wishlistLoading ? (
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          ) : (
+            <svg
+              className="w-4 h-4"
+              fill={wishlisted ? "currentColor" : "none"}
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+          )}
+        </button>
       </Link>
 
       {/* Product Details */}
@@ -27,11 +96,9 @@ export default function ProductCard({ product }) {
             {name}
           </h3>
         </Link>
-        
+
         {description && (
-          <p className="text-xs text-gray-500 mt-1 line-clamp-2 flex-1">
-            {description}
-          </p>
+          <p className="text-xs text-gray-500 mt-1 line-clamp-2 flex-1">{description}</p>
         )}
 
         <div className="mt-4 flex items-center justify-between">
@@ -53,4 +120,3 @@ export default function ProductCard({ product }) {
     </div>
   );
 }
-

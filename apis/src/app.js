@@ -8,6 +8,7 @@ const cartRoutes = require('./routes/cartRoutes')
 const checkoutRoutes = require('./routes/checkoutRoutes')
 const authRoutes = require('./routes/authRoutes')
 const customerRoutes = require('./routes/customerRoutes')
+const wishlistRoutes = require('./routes/wishlistRoutes')
 
 app.use(cors({
     origin: 'http://localhost:5173',
@@ -38,5 +39,6 @@ app.use('/api/cart', cartRoutes)
 app.use('/api/checkout', checkoutRoutes)
 app.use('/api/auth', authRoutes)
 app.use('/api/customers', customerRoutes)
+app.use('/api/wishlist', wishlistRoutes)
 
 module.exports = app
