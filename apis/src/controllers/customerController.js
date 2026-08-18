@@ -37,7 +37,8 @@ const registerCustomer = async (req, res) => {
             first_name,
             last_name,
             billing,
-            shipping
+            shipping,
+            role: 'customer'
         });
 
         res.status(201).json({

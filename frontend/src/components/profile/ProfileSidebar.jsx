@@ -10,9 +10,12 @@ export default function ProfileSidebar({
   setActiveTab,
   mobileMenuOpen,
   setMobileMenuOpen,
+  onLogout,
+  isAuthenticated,
+  isLoggingOut,
 }) {
   return (
-    <aside className="lg:w-72 flex-shrink-0">
+    <aside className="lg:w-72 flex-shrink-0 lg:sticky lg:top-[74px] lg:self-start">
       {/* Avatar card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
         <div className="flex items-center gap-4">
@@ -98,14 +101,27 @@ export default function ProfileSidebar({
         ))}
 
         {/* Logout */}
-        <div className="border-t border-gray-100">
-          <button className="w-full flex items-center gap-3 px-5 py-3.5 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors text-left border-l-[3px] border-l-transparent">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            Logout
-          </button>
-        </div>
+        {isAuthenticated && (
+          <div className="border-t border-gray-100">
+            <button 
+              onClick={onLogout}
+              disabled={isLoggingOut}
+              className="w-full flex items-center gap-3 px-5 py-3.5 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors text-left border-l-[3px] border-l-transparent disabled:opacity-60 disabled:cursor-wait"
+            >
+              {isLoggingOut ? (
+                <svg className="animate-spin w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              )}
+              {isLoggingOut ? "Logging out..." : "Logout"}
+            </button>
+          </div>
+        )}
       </nav>
     </aside>
   );

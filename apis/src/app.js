@@ -6,6 +6,8 @@ const pageRoutes = require('./routes/pageRoutes')
 const productsRoutes = require('./routes/productsRoutes')
 const cartRoutes = require('./routes/cartRoutes')
 const checkoutRoutes = require('./routes/checkoutRoutes')
+const authRoutes = require('./routes/authRoutes')
+const customerRoutes = require('./routes/customerRoutes')
 
 app.use(cors({
     origin: 'http://localhost:5173',
@@ -34,5 +36,7 @@ app.use('/api/pages', pageRoutes)
 app.use('/api/products', productsRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/checkout', checkoutRoutes)
+app.use('/api/auth', authRoutes)
+app.use('/api/customers', customerRoutes)
 
 module.exports = app
