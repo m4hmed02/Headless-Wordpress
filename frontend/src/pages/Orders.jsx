@@ -1,7 +1,5 @@
 
-export default function ProfileOrdersTab() {
-
-
+export default function Orders() {
   return (
     <div>
       <h2 className="text-xl font-bold text-gray-900 mb-6">My Orders</h2>

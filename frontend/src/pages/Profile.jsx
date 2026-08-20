@@ -5,7 +5,7 @@ import logoutCustomer from "../apis/auth/logout";
 import ProfileSidebar from "../components/profile/ProfileSidebar";
 import ProfileSkeleton from "../components/profile/ProfileSkeleton";
 import ProfileAccountTab from "../components/profile/ProfileAccountTab";
-import ProfileOrdersTab from "../components/profile/ProfileOrdersTab";
+
 import ProfileAddressesTab from "../components/profile/ProfileAddressesTab";
 import ProfileWishlistTab from "../components/profile/ProfileWishlistTab";
 import ProfilePasswordTab from "../components/profile/ProfilePasswordTab";
@@ -80,11 +80,11 @@ export default function Profile() {
     ? (`${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || "U")
     : "G";
 
-  const publicTabs = ["orders"]; // Tabs that don't require login
+
 
   const renderContent = () => {
     // If not logged in and trying to access a protected tab, show login or register
-    if (!isAuthenticated && !publicTabs.includes(activeTab)) {
+    if (!isAuthenticated) {
       if (showRegister) {
         return (
           <RegisterPage
@@ -104,7 +104,6 @@ export default function Profile() {
 
     switch (activeTab) {
       case "account": return <ProfileAccountTab profile={profileData} />;
-      case "orders": return <ProfileOrdersTab />;
       case "addresses": return <ProfileAddressesTab profile={profileData} />;
       case "wishlist": return <ProfileWishlistTab />;
       case "password": return <ProfilePasswordTab />;
