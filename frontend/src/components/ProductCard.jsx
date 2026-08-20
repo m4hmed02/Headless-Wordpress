@@ -4,7 +4,7 @@ import addToWishlist from "../apis/Wishlist/addToWishlist";
 import addToCart from "../apis/Cart/addToCart";
 
 export default function ProductCard({ product, wishlistIds = [] }) {
-  const { id, name, price, regular_price, images, category, short_description, description } = product;
+  const { id, name, price, regular_price, images, category, short_description, description, type } = product;
   const imageSrc =
     images?.[0]?.src ||
     "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80";
@@ -99,31 +99,40 @@ export default function ProductCard({ product, wishlistIds = [] }) {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={cartLoading || cartAdded}
-            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-medium px-3.5 py-2 rounded-lg transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed"
-          >
-            {cartLoading ? (
-              <>
-                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                Adding...
-              </>
-            ) : cartAdded ? (
-              <>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Added!
-              </>
-            ) : (
-              "Add to Cart"
-            )}
-          </button>
+          {type === "grouped" ? (
+            <Link
+              to={`/product/${id}`}
+              className="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-900 text-white text-xs font-medium px-3.5 py-2 rounded-lg transition-colors"
+            >
+              View Product
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={cartLoading || cartAdded}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-medium px-3.5 py-2 rounded-lg transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed"
+            >
+              {cartLoading ? (
+                <>
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Adding...
+                </>
+              ) : cartAdded ? (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Added!
+                </>
+              ) : (
+                "Add to Cart"
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>
