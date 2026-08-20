@@ -1,66 +1,68 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
 import getWishlist from "../../apis/Wishlist/getWishlist";
-import { getProductsById } from "../../apis/Products/getProducts";
-import removeFromWishlist from "../../apis/Wishlist/removeFromWishlist";
+import { getMultipleProducts } from "../../apis/Products/getProducts";
+import WishlistProductCart from "../WishlistProductCart";
+
 
 export default function ProfileWishlistTab() {
-  const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState([]);
-  const [error, setError] = useState(null);
 
-  const handleRemove = async (productId) => {
-    try {
-      const customerId = localStorage.getItem("customerId");
-      if (!customerId) return;
-      
-      await removeFromWishlist(customerId, productId);
-      
-      setProducts(products.filter(p => p.id !== productId));
-    } catch (err) {
-      console.error("Failed to remove product from wishlist:", err);
-    }
-  };
+  const [prodcutIDs, setProductIDs] = useState([])
+  const [products, setProducts] = useState([])
+
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
-    const fetchWishlist = async () => {
-      try {
-        setLoading(true);
-        const customerId = localStorage.getItem("customerId");
-        if (!customerId) {
-          setProducts([]);
-          return;
-        }
 
-        const wishlistData = await getWishlist(customerId);
-        // wishlistData might be { success: true, data: [...] } or just an array
-        const actualData = wishlistData?.data || wishlistData;
-        const productIds = Array.isArray(actualData)
-          ? actualData.map((item) =>
-              typeof item === "object" ? item.product_id ?? item.id : item
-            )
-          : [];
+    const loadWishlist = async () => {
+      const customerId = localStorage.getItem("customerId");
 
-        if (productIds.length === 0) {
-          setProducts([]);
-          return;
-        }
-
-        const productDetails = await Promise.all(
-          productIds.map((pid) => getProductsById(pid).catch(() => null))
-        );
-
-        setProducts(productDetails.filter(Boolean));
-      } catch (err) {
-        console.error("Failed to fetch wishlist:", err);
-        setError("Failed to load wishlist. Please try again.");
-      } finally {
-        setLoading(false);
+      if (!customerId) {
+        setError("Please Login To Add Product to Wishlist")
+        return
       }
-    };
 
-    fetchWishlist();
-  }, []);
+      setLoading(true)
+      try {
+        const response = await getWishlist(customerId)
+        setProductIDs(response.data.data)
+      } catch (error) {
+        setError(error.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadWishlist()
+  }, [])
+
+  useEffect(() => {
+    if (prodcutIDs.length === 0) {
+      setProducts([])
+      return
+    }
+
+    const loadProducts = async () => {
+      try {
+        setError(null)
+        setLoading(true)
+
+        const response = await getMultipleProducts(prodcutIDs)
+        console.log(response)
+        setProducts(response.data || response || [])
+
+      } catch (error) {
+        setError(error.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadProducts()
+
+  }, [prodcutIDs])
+
 
   return (
     <div>
@@ -112,7 +114,7 @@ export default function ProfileWishlistTab() {
           </div>
           <p className="text-gray-500 text-sm font-medium">Your wishlist is empty.</p>
           <p className="text-gray-400 text-xs mt-1">
-            Browse products and click the ♡ button to save them here.
+            Browse products and add to wishlist.
           </p>
           <Link
             to="/"
@@ -125,75 +127,19 @@ export default function ProfileWishlistTab() {
 
       {/* Wishlist Products Grid */}
       {!loading && !error && products.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {products.map((product) => {
-            const imageSrc =
-              product.images?.[0]?.src ||
-              "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=200&q=80";
-            return (
-              <div
+        <div className="overflow-x-auto pb-4">
+          <div className="grid grid-cols-2 gap-4 min-w-[600px]">
+            {products.map((product) => (
+              <WishlistProductCart
                 key={product.id}
-                className="flex items-center gap-4 p-4 border border-gray-100 rounded-xl hover:border-gray-200 hover:shadow-sm transition-all group"
-              >
-                {/* Product Image */}
-                <Link
-                  to={`/product/${product.id}`}
-                  className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-50 border border-gray-100"
-                >
-                  <img
-                    src={imageSrc}
-                    alt={product.name}
-                    className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                  />
-                </Link>
-
-                {/* Product Info */}
-                <div className="flex-1 min-w-0">
-                  <Link to={`/product/${product.id}`}>
-                    <h3 className="text-sm font-semibold text-gray-900 line-clamp-1 hover:text-blue-600 transition-colors">
-                      {product.name}
-                    </h3>
-                  </Link>
-                  <p className="text-sm font-bold text-gray-800 mt-0.5">
-                    ${product.price}
-                    {product.regular_price && product.regular_price !== product.price && (
-                      <span className="ml-1.5 text-xs text-gray-400 font-normal line-through">
-                        ${product.regular_price}
-                      </span>
-                    )}
-                  </p>
-                  <span
-                    className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                      product.stock_status === "instock"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {product.stock_status === "instock" ? "In Stock" : "Out of Stock"}
-                  </span>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex flex-col gap-2 flex-shrink-0">
-                  <Link
-                    to={`/product/${product.id}`}
-                    className="text-xs text-center bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    View
-                  </Link>
-                  {/* Remove button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(product.id)}
-                    className="text-xs text-center border border-gray-200 hover:border-red-300 hover:text-red-500 text-gray-700 font-medium px-3 py-1.5 rounded-lg transition-colors"
-                    title="Remove from wishlist"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+                product={product}
+                onRemove={(id) => {
+                  setProducts((prev) => prev.filter((p) => p.id !== id));
+                  setProductIDs((prev) => prev.filter((pid) => pid !== id));
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

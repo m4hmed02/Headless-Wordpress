@@ -3,12 +3,15 @@ import { useParams, Link } from "react-router-dom";
 import { getProductsById } from "../apis/Products/getProducts";
 import ProductSkeleton from "../components/ProductSkeleton";
 import addToCart from "../apis/Cart/addToCart";
+
 import getWishlist from "../apis/Wishlist/getWishlist";
 import addToWishlist from "../apis/Wishlist/addToWishlist";
 import removeFromWishlist from "../apis/Wishlist/removeFromWishlist";
 
+
 export default function Product() {
   const { id } = useParams();
+  const productID = Number(id)
   const [productData, setProductData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,6 +23,7 @@ export default function Product() {
 
   // Wishlist state
   const [wishlisted, setWishlisted] = useState(false);
+  const [wishlistedProducts, setWishlistedProduct] = useState([])
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
   // Grouped Product State
@@ -29,13 +33,20 @@ export default function Product() {
   const [selectedAttributes, setSelectedAttributes] = useState({});
 
   useEffect(() => {
+    if (wishlistedProducts.includes(productID)) {
+      setWishlisted(true)
+    } else {
+      setWishlisted(false)
+    }
+  }, [wishlistedProducts, productID]);
+
+  useEffect(() => {
     const fetchProduct = async () => {
       if (!id) return;
       try {
         setLoading(true);
         const data = await getProductsById(id);
         setProductData(data);
-        console.log("Product by id:", data);
       } catch (err) {
         console.error("Failed to load product by id", err);
         setError(err.message);
@@ -44,31 +55,34 @@ export default function Product() {
       }
     };
     fetchProduct();
+
   }, [id]);
 
-  // Fetch wishlist to check if this product is already wishlisted
+  //get wishlist data
   useEffect(() => {
-    const checkWishlist = async () => {
+    const customerId = localStorage.getItem("customerId");
+
+    if (!customerId) {
+      setError("Please Login To Add Product to Wishlist")
+      return
+    }
+    const fetchWishlist = async () => {
       try {
-        const customerId = localStorage.getItem("customerId");
-        if (!customerId || !id) return;
-        const wishlistData = await getWishlist(customerId);
-        const actualData = wishlistData?.data || wishlistData;
-        const ids = Array.isArray(actualData)
-          ? actualData.map((item) =>
-              typeof item === "object" ? String(item.product_id ?? item.id) : String(item)
-            )
-          : [];
-        console.log("Fetched wishlist data:", wishlistData);
-        console.log("Parsed wishlist ids:", ids, "Current id:", id);
-        setWishlisted(ids.includes(String(id)));
+        setWishlistLoading(true)
+
+        const response = await getWishlist(customerId)
+
+        setWishlistedProduct(response.data.data)
       } catch (err) {
-        // silently ignore
-        console.error("Error fetching wishlist", err);
+        console.log(err)
+      } finally {
+        setWishlistLoading(false)
       }
-    };
-    checkWishlist();
-  }, [id]);
+    }
+    fetchWishlist()
+  }, [id])
+
+
 
   useEffect(() => {
     const fetchGroupedChildren = async () => {
@@ -79,7 +93,7 @@ export default function Product() {
             productData.grouped_products.map((childId) => getProductsById(childId))
           );
           setChildProducts(children);
-          
+
           const initialQtys = {};
           children.forEach(c => initialQtys[c.id] = 0);
           setGroupedQuantities(initialQtys);
@@ -103,12 +117,12 @@ export default function Product() {
       if (productData?.type === "grouped") {
         const itemsToAdd = Object.entries(groupedQuantities).filter(([_, qty]) => qty > 0);
         if (itemsToAdd.length === 0) {
-           setCartError("Please choose the quantity of items you wish to add.");
-           setIsAdding(false);
-           return;
+          setCartError("Please choose the quantity of items you wish to add.");
+          setIsAdding(false);
+          return;
         }
         for (const [childId, qty] of itemsToAdd) {
-            await addToCart(childId, qty);
+          await addToCart(childId, qty);
         }
       } else if (productData?.type === "variable") {
         await addToCart(id, quantity, selectedAttributes);
@@ -128,36 +142,53 @@ export default function Product() {
     }
   };
 
-  const handleWishlistToggle = async () => {
+  const handleAddToWishlist = async () => {
     const customerId = localStorage.getItem("customerId");
     if (!customerId) {
-      alert("Please log in to manage your wishlist.");
-      return;
-    }
-
-    if (wishlisted) {
-      try {
-        setWishlistLoading(true);
-        await removeFromWishlist(parseInt(customerId, 10), parseInt(id, 10));
-        setWishlisted(false);
-      } catch (err) {
-        console.error("Failed to remove from wishlist:", err);
-      } finally {
-        setWishlistLoading(false);
-      }
-      return;
+      setError("Please Login To Add Product to Wishlist")
+      return
     }
 
     try {
-      setWishlistLoading(true);
-      await addToWishlist(parseInt(customerId, 10), parseInt(id, 10));
-      setWishlisted(true);
-    } catch (err) {
-      console.error("Failed to add to wishlist:", err);
+      setWishlistLoading(true)
+      const response = await addToWishlist(customerId, productID)
+
+      if (response.success) {
+        setWishlisted(true)
+        console.log("add to wishlist successfull")
+      }
+    } catch (error) {
+      console.log(error)
+      setError(error.response?.data?.message || error.message || "Failed to add product to wishlist.")
     } finally {
-      setWishlistLoading(false);
+      setWishlistLoading(false)
     }
-  };
+
+  }
+
+  const handleRemoveFromWishlist = async () => {
+    const customerId = localStorage.getItem("customerId");
+    if (!customerId) {
+      setError("Please Login To Remove Product from Wishlist")
+      return
+    }
+
+    try {
+      setWishlistLoading(true)
+      const response = await removeFromWishlist(customerId, productID)
+
+      if (response.success) {
+        setWishlisted(false)
+        console.log("remove from wishlist successfull")
+      }
+    } catch (error) {
+      console.log(error)
+      setError(error.response?.data?.message || error.message || "Failed to add product to wishlist.")
+    } finally {
+      setWishlistLoading(false)
+    }
+  }
+
 
   if (loading) {
     return <ProductSkeleton />;
@@ -272,41 +303,9 @@ export default function Product() {
               </span>
             </div>
 
-            {/* Title + Wishlist */}
-            <div className="flex items-start justify-between gap-3 mb-2">
+            {/* Title */}
+            <div className="mb-2">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{name}</h1>
-              <button
-                type="button"
-                onClick={handleWishlistToggle}
-                disabled={wishlistLoading}
-                aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                className={`flex-shrink-0 w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 ${
-                  wishlisted
-                    ? "bg-red-500 border-red-500 text-white hover:bg-red-600 hover:border-red-600"
-                    : "bg-white border-gray-200 text-gray-400 hover:border-red-400 hover:text-red-500"
-                } ${wishlistLoading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
-              >
-                {wishlistLoading ? (
-                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-5 h-5"
-                    fill={wishlisted ? "currentColor" : "none"}
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    />
-                  </svg>
-                )}
-              </button>
             </div>
 
             {/* Ratings & SKU */}
@@ -354,52 +353,52 @@ export default function Product() {
               <div className="mb-6 border-t border-gray-100 pt-6">
                 <h3 className="text-sm font-bold text-gray-900 mb-4">Included Items</h3>
                 {childLoading ? (
-                   <div className="animate-pulse space-y-3">
-                     <div className="h-10 bg-gray-100 rounded-lg w-full" />
-                     <div className="h-10 bg-gray-100 rounded-lg w-full" />
-                   </div>
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-10 bg-gray-100 rounded-lg w-full" />
+                    <div className="h-10 bg-gray-100 rounded-lg w-full" />
+                  </div>
                 ) : (
                   <div className="space-y-4 mb-6">
                     {childProducts.map(child => (
                       <div key={child.id} className="flex items-center justify-between border-b border-gray-50 pb-4">
-                         <div>
-                            <Link to={`/product/${child.id}`} className="font-medium text-gray-900 hover:text-blue-600 transition-colors">{child.name}</Link>
-                            <p className="text-sm text-gray-500">${child.price}</p>
-                         </div>
-                         <div className="flex items-center border border-gray-300 rounded-xl bg-gray-50 overflow-hidden w-fit">
-                            <button
-                              onClick={() => setGroupedQuantities(prev => ({...prev, [child.id]: Math.max(0, prev[child.id] - 1)}))}
-                              className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors font-semibold"
-                            >
-                              -
-                            </button>
-                            <span className="px-3 py-1.5 font-bold text-gray-900 text-sm min-w-[2.5rem] text-center bg-white">
-                              {groupedQuantities[child.id] || 0}
-                            </span>
-                            <button
-                              onClick={() => setGroupedQuantities(prev => ({...prev, [child.id]: (prev[child.id] || 0) + 1}))}
-                              className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors font-semibold"
-                            >
-                              +
-                            </button>
-                          </div>
+                        <div>
+                          <Link to={`/product/${child.id}`} className="font-medium text-gray-900 hover:text-blue-600 transition-colors">{child.name}</Link>
+                          <p className="text-sm text-gray-500">${child.price}</p>
+                        </div>
+                        <div className="flex items-center border border-gray-300 rounded-xl bg-gray-50 overflow-hidden w-fit">
+                          <button
+                            onClick={() => setGroupedQuantities(prev => ({ ...prev, [child.id]: Math.max(0, prev[child.id] - 1) }))}
+                            className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors font-semibold"
+                          >
+                            -
+                          </button>
+                          <span className="px-3 py-1.5 font-bold text-gray-900 text-sm min-w-[2.5rem] text-center bg-white">
+                            {groupedQuantities[child.id] || 0}
+                          </span>
+                          <button
+                            onClick={() => setGroupedQuantities(prev => ({ ...prev, [child.id]: (prev[child.id] || 0) + 1 }))}
+                            className="px-3 py-1.5 text-gray-600 hover:bg-gray-200 transition-colors font-semibold"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
-                
+
                 {/* Grouped Add to Cart Button */}
                 <button
                   type="button"
                   onClick={handleAddToCart}
                   disabled={isAdding || Object.values(groupedQuantities).every(q => q === 0)}
                   className={`w-full py-3.5 px-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${cartSuccess
-                      ? "bg-green-600 text-white"
-                      : isAdding
-                        ? "bg-blue-400 text-white cursor-not-allowed"
-                        : Object.values(groupedQuantities).every(q => q === 0)
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                    ? "bg-green-600 text-white"
+                    : isAdding
+                      ? "bg-blue-400 text-white cursor-not-allowed"
+                      : Object.values(groupedQuantities).every(q => q === 0)
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700 text-white"
                     }`}
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -449,19 +448,19 @@ export default function Product() {
                       +
                     </button>
                   </div>
-                  
+
                   {/* Add to Cart Button */}
                   <button
                     type="button"
                     onClick={handleAddToCart}
                     disabled={isAdding || stock_status !== "instock" || attributes.filter(a => a.variation).length !== Object.keys(selectedAttributes).length}
                     className={`flex-1 py-3.5 px-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${cartSuccess
-                        ? "bg-green-600 text-white"
-                        : isAdding
-                          ? "bg-blue-400 text-white cursor-not-allowed"
-                          : stock_status !== "instock" || attributes.filter(a => a.variation).length !== Object.keys(selectedAttributes).length
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                      ? "bg-green-600 text-white"
+                      : isAdding
+                        ? "bg-blue-400 text-white cursor-not-allowed"
+                        : stock_status !== "instock" || attributes.filter(a => a.variation).length !== Object.keys(selectedAttributes).length
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700 text-white"
                       }`}
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -493,19 +492,19 @@ export default function Product() {
                     +
                   </button>
                 </div>
-                
+
                 {/* Add to Cart Button */}
                 <button
                   type="button"
                   onClick={handleAddToCart}
                   disabled={isAdding || stock_status !== "instock"}
                   className={`flex-1 py-3.5 px-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${cartSuccess
-                      ? "bg-green-600 text-white"
-                      : isAdding
-                        ? "bg-blue-400 text-white cursor-not-allowed"
-                        : stock_status !== "instock"
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700 text-white"
+                    ? "bg-green-600 text-white"
+                    : isAdding
+                      ? "bg-blue-400 text-white cursor-not-allowed"
+                      : stock_status !== "instock"
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700 text-white"
                     }`}
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -517,6 +516,84 @@ export default function Product() {
                 </button>
               </div>
             )}
+
+            {/* Add to Wishlist Button */
+
+              wishlisted ?
+                (<button
+                  type="button"
+                  onClick={handleRemoveFromWishlist}
+                  disabled={wishlistLoading}
+                  className={`w-full py-3.5 px-6 mb-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${wishlisted
+                    ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                    } ${wishlistLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+                >
+                  {wishlistLoading ? (
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill={wishlisted ? "currentColor" : "none"}
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                  )}
+                  {!wishlistLoading && (
+                    <span>
+                      Remove from Wishlist
+                    </span>
+                  )}
+                </button>)
+                :
+                (
+                  <button
+                    type="button"
+                    onClick={handleAddToWishlist}
+                    disabled={wishlistLoading}
+                    className={`w-full py-3.5 px-6 mb-6 font-semibold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${wishlisted
+                      ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      } ${wishlistLoading ? "opacity-60 cursor-not-allowed" : ""}`}
+                  >
+                    {wishlistLoading ? (
+                      <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-5 h-5"
+                        fill={wishlisted ? "currentColor" : "none"}
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
+                      </svg>
+                    )}
+                    {!wishlistLoading && (
+                      <span>
+                        Add To Wishlist
+                      </span>
+                    )}
+                  </button>
+                )
+            }
 
             {/* Success & Error Messages */}
             {cartSuccess && (

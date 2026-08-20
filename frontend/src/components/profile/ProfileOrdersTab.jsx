@@ -1,5 +1,7 @@
-// TODO: Fetch and display the customer's orders via API
+
 export default function ProfileOrdersTab() {
+
+
   return (
     <div>
       <h2 className="text-xl font-bold text-gray-900 mb-6">My Orders</h2>
