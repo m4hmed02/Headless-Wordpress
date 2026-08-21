@@ -1,5 +1,4 @@
-const { woocommerceStoreAPI } = require('./woocommerceService')
-
+const { woocommerceStoreAPI } = require('./woocommerceService');
 
 const processCheckout = async (
     billingAddress,
@@ -8,8 +7,11 @@ const processCheckout = async (
     paymentMethod,
     paymentData,
     nonce,
-    cartToken
+    cartToken,
+    customerId // ADDED
 ) => {
+
+    console.log('CHECKOUT CART TOKEN:', cartToken);
 
     const response = await woocommerceStoreAPI.post(
         '/checkout',
@@ -23,9 +25,15 @@ const processCheckout = async (
         {
             headers: {
                 'Nonce': nonce || '',
-                'Cart-Token': cartToken || ''
+                'Cart-Token': cartToken || '',
+                'Customer-Id': customerId || '' 
             }
         }
+    );
+
+    console.log(
+        'WOOCOMMERCE CART TOKEN:',
+        response.headers['cart-token']
     );
 
     return {
@@ -37,4 +45,4 @@ const processCheckout = async (
 
 module.exports = {
     processCheckout
-}
+};

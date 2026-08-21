@@ -5,8 +5,10 @@ const placeOrder = async ({
     shippingAddress,
     customerNote,
     paymentMethod,
-    paymentData = []
+    paymentData = [],
+    customerId = ""
 }) => {
+
     const nonce = localStorage.getItem("nonce");
     const cartToken = localStorage.getItem("cartToken");
 
@@ -17,7 +19,9 @@ const placeOrder = async ({
             shipping_address: shippingAddress,
             customer_note: customerNote,
             payment_method: paymentMethod,
-            payment_data: paymentData
+            payment_data: paymentData,
+            cart_token: cartToken,
+            customer_id: customerId
         },
         {
             headers: {

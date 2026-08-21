@@ -10,7 +10,7 @@ export default function Checkout() {
   const [cartData, setCartData] = useState({});
   const [cartLoading, setCartLoading] = useState(true);
   const [cartError, setCartError] = useState(null);
-  
+
   const [updatingCart, setUpdatingCart] = useState(false);
   const [selectedShippingMethod, setSelectedShippingMethod] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("bacs");
@@ -26,7 +26,7 @@ export default function Checkout() {
         const res = await getCart();
         const cart = res?.cart || res || {};
         setCartData(cart);
-        
+
         // Initialize default selected shipping method if available
         if (cart.shipping_rates && cart.shipping_rates.length > 0) {
           const rates = cart.shipping_rates[0]?.shipping_rates || [];
@@ -48,11 +48,11 @@ export default function Checkout() {
   const handleShippingMethodChange = async (rateId) => {
     setSelectedShippingMethod(rateId);
     setUpdatingCart(true);
-    
+
     try {
       const packageId = cartData.shipping_rates[0]?.package_id || 0;
       const res = await selectShippingRate(packageId, rateId);
-      
+
       if (res?.cart) {
         setCartData(res.cart);
       }
@@ -65,6 +65,7 @@ export default function Checkout() {
   };
 
   const handlePlaceOrder = async ({ billingAddress, shippingAddress, customerNote, paymentMethod }) => {
+    const customerId = localStorage.getItem("customerId");
     try {
       setSubmitting(true);
       setOrderError(null);
@@ -73,6 +74,7 @@ export default function Checkout() {
         shippingAddress,
         customerNote,
         paymentMethod: paymentMethod || selectedPaymentMethod,
+        customerId
       });
       console.log("Order placed:", result);
       setOrderSuccess(result);
@@ -140,9 +142,9 @@ export default function Checkout() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Billing form */}
         <div className="lg:col-span-2">
-          <BillingForm 
-            onSubmit={handlePlaceOrder} 
-            loading={submitting} 
+          <BillingForm
+            onSubmit={handlePlaceOrder}
+            loading={submitting}
             shippingRates={shippingRates}
             selectedShippingMethod={selectedShippingMethod}
             onShippingMethodChange={handleShippingMethodChange}
